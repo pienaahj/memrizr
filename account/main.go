@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -8,41 +9,25 @@ import (
 	"syscall"
 	"time"
 
-	hl "github.com/pienaahj/memrizr/account/handler"
-	rt "github.com/pienaahj/memrizr/account/router"
+	"github.com/gin-gonic/gin"
+	"github.com/pienaahj/memrizr/account/handler"
+	// rt "github.com/pienaahj/memrizr/account/router"
 )
-
-/*				own router use
-
-	r := &Router{}
-
-    r.Route(http.MethodGet, "/", func(w http.ResponseWriter, r *http.Request) {
-        w.Write([]byte("The Best Router!"))
-    })
-
-    r.Route(http.MethodGet, `/hello/(?P<Message>\w+)`, func(w http.ResponseWriter, r *http.Request) {
-        w.Write([]byte("Hello " + URLParam(r, "Message")))
-    })
-
-    r.Route(http.MethodGet, "/panic", func(w http.ResponseWriter, r *http.Request) {
-        panic("something bad happened!")
-    })
-
-    http.ListenAndServe(":8000", r)
-
-*/
 
 func main() {
 	port := ":8080"
 	// Create a new custom router
-	router := &rt.Router{}
-	h := hl.NewHandler(&hl.Config{
+	// router := &rt.Router{}
+	router := gin.Default()
+	// h := hl.NewHandler(&hl.Config{
+	// 	R: router,
+	// })
+	handler.NewHandler(&handler.Config{
 		R: router,
 	})
-
 	log.Println("Starting server...")
 	// handle all the defined routes
-	h.Routes()
+	// h.Routes()
 
 	// Create a custom http server with a custom handler(router)
 	s := &http.Server{
@@ -55,13 +40,13 @@ func main() {
 	// Gracefull shutdown
 	go func() {
 		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("Failed to initialize server: \n", err)
+			log.Fatalf("Failed to initialize server: %v\n", err)
 		}
 	}()
 	/* default servmux handler
 	go func() {
 		if err := http.ListenAndServe(port, nil); err != nil && err != http.ErrServerClosed {
-			log.Fatal("Failed to initialize server: \n", err)
+			log.Fatalf("Failed to initialize server: \n", err)
 		}
 		}()
 	*/
@@ -74,9 +59,36 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	// This blocks until signal is passed to the quit channel
-
 	<-quit
+
+	// The context is used to inform the server it has 5 seconds to finish
+	// the request it is currently handling
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	// Shutting down server
 	log.Println("Shutting down server...")
+	if err := s.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v\n", err)
+	}
 }
+
+/*				own router use
+
+				r := &Router{}
+
+				r.Route(http.MethodGet, "/", func(w http.ResponseWriter, r *http.Request) {
+					w.Write([]byte("The Best Router!"))
+				})
+
+				r.Route(http.MethodGet, `/hello/(?P<Message>\w+)`, func(w http.ResponseWriter, r *http.Request) {
+					w.Write([]byte("Hello " + URLParam(r, "Message")))
+				})
+
+				r.Route(http.MethodGet, "/panic", func(w http.ResponseWriter, r *http.Request) {
+					panic("something bad happened!")
+				})
+
+				http.ListenAndServe(":8000", r)
+
+*/

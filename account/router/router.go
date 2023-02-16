@@ -39,6 +39,7 @@ func (ent *RouteEntry) Match(r *http.Request) map[parameter]string {
 // ~~~~~ Router ~~~~~ //
 // Router struct
 type Router struct {
+	ctx    context.Context
 	routes []RouteEntry
 }
 

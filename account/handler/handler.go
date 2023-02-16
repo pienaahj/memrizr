@@ -1,12 +1,12 @@
 package handler
 
 import (
-	"encoding/json"
-	"log"
 	"net/http"
+	"os"
 
-	j "github.com/pienaahj/memrizr/account/jsoncoder"
-	rt "github.com/pienaahj/memrizr/account/router"
+	"github.com/pienaahj/memrizr/account/model"
+	// rt "github.com/pienaahj/memrizr/account/router"
+	"github.com/gin-gonic/gin"
 )
 
 // Handler struct is an object representing the service and holds all
@@ -15,38 +15,113 @@ type Handler struct {
 	//logger *someLogger
 	// db     *someDatabase
 	// router *someRouter
-	R *rt.Router
+	// R*rt.Router
 	// email  EmailSender
+	// user handler
+	UserService model.UserService
+	// token service
+	TokenService model.TokenService
 }
 
-// Config holds the configuration of the router
+// Config will hold services that will eventually be injected into this
+// handler layer on handler initialization
 type Config struct {
-	R *rt.Router
+	// R           *rt.Router
+	R            *gin.Engine
+	UserService  model.UserService
+	TokenService model.TokenService
 }
 
 //	NewRouter creates a new Router initializes the handler with required injected services along with http routes
 //
 // Does not return as it deals directly with a reference to the router engine
-func NewHandler(c *Config) *Handler {
+// func NewHandler(c *Config) *Handler {
+func NewHandler(c *Config) {
 	// Create a handler (which will later have injected services)
-	// h := &Handler{} // currently has no properties
 	h := &Handler{
-		R: c.R,
+		// R:           c.R,
+		UserService:  c.UserService,
+		TokenService: c.TokenService,
 	}
-	// Create an account group
-	// g := c.R.Group("/api/account")
+	// Create a group, or base url for all routes
+	g := c.R.Group(os.Getenv("ACCOUNT_API_URL"))
 
-	// g.GET("/", func(c *gin.Context) {
-	// 	c.JSON(http.StatusOK, gin.H{
-	// 		"hello": "space persons",
-	// 	})
-	// })
-	//
-	return h
+	g.GET("/me", h.Me)
+	g.POST("/signup", h.Signup)
+	g.POST("/signin", h.Signin)
+	g.POST("/signout", h.Signout)
+	g.POST("/tokens", h.Tokens)
+	g.POST("/image", h.Image)
+	g.DELETE("/image", h.DeleteImage)
+	g.PUT("/details", h.Details)
 }
+
+// // Me handler calls services for getting
+// // a user's details
+// func (h *Handler) Me(c *gin.Context) {
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"hello": "it's me",
+// 	})
+// }
+
+// Signin handler
+func (h *Handler) Signin(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"hello": "it's signin",
+	})
+}
+
+// Signout handler
+func (h *Handler) Signout(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"hello": "it's signout",
+	})
+}
+
+// Tokens handler
+func (h *Handler) Tokens(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"hello": "it's tokens",
+	})
+}
+
+// Image handler
+func (h *Handler) Image(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"hello": "it's image",
+	})
+}
+
+// DeleteImage handler
+func (h *Handler) DeleteImage(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"hello": "it's deleteImage",
+	})
+}
+
+// Details handler
+func (h *Handler) Details(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"hello": "it's details",
+	})
+}
+
+// Create an account group
+// g := c.R.Group("/api/account")
+
+// g.GET("/", func(c *gin.Context) {
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"hello": "space persons",
+// 	})
+// })
+//
+// return h
+// }
+/*    own router
 func (hd *Handler) Routes() {
 	//  Define the URL group
-	group := "/api/account"
+	group := os.Getenv("../ACCOUNT_API_URL")
+	fmt.Println("Environment: ", group)
 	hd.R.Route(http.MethodGet, group, hd.handleAccount())
 	hd.R.Route(http.MethodGet, group+"/me", hd.handleMe())
 	hd.R.Route(http.MethodPost, group+"/signup", hd.handleSignup())
@@ -57,7 +132,9 @@ func (hd *Handler) Routes() {
 	hd.R.Route(http.MethodPut, group+"/details", hd.handleDetails())
 
 }
+*/
 
+/*   own handlers
 // handleAccount handles route /api/account
 func (hd *Handler) handleAccount() http.HandlerFunc {
 	log.Println("handling route /api/account...")
@@ -81,19 +158,6 @@ func (hd *Handler) handleAccount() http.HandlerFunc {
 		log.Println("sent reply to webpage...")
 	}
 
-}
-
-// handleMe handles the Me route
-func (s *Handler) handleMe() http.HandlerFunc {
-	// thing := prepareThing()
-	newString := "Hello, it's me"
-	return func(w http.ResponseWriter, r *http.Request) {
-		// use thing
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		j.ToJSON(newString, w)
-		log.Println("sent reply to webpage...")
-	}
 }
 
 // handleMe handles the Signup route
@@ -173,3 +237,4 @@ func (s *Handler) handleDetails() http.HandlerFunc {
 		log.Println("sent reply to webpage...")
 	}
 }
+*/

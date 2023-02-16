@@ -13,7 +13,7 @@ RUN go install github.com/cespare/reflex@latest
 # Copy go mod and sum files
 COPY go.mod .
 # - this is only needed if there are dependancies
-#COPY go.sum . 
+COPY go.sum . 
 
 # Download all dependencies
 RUN go mod download
