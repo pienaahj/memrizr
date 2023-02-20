@@ -34,7 +34,7 @@ func TestMe(t *testing.T) {
 
 		mockUserService := new(mocks.MockUserService)
 		//  all requests of GET method with *gin.Context should return the mockUserResp as created above
-		mockUserService.On("Get", mock.AnythingOfType("*gin.Context"), uid).Return(mockUserResp, nil)
+		mockUserService.On("Get", mock.AnythingOfType("*context.emptyCtx"), uid).Return(mockUserResp, nil)
 
 		// a response recorder for getting written http response
 		// to check that the HTTP response we receive is as expected

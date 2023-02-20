@@ -8,23 +8,30 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/gin-gonic/gin"
-	"github.com/pienaahj/memrizr/account/handler"
 	// rt "github.com/pienaahj/memrizr/account/router"
 )
 
 func main() {
 	port := ":8080"
+
+	// initialize data sources
+	ds, err := initDS()
+
+	if err != nil {
+		log.Fatalf("Unable to initialize data sources: %v\n", err)
+	}
 	// Create a new custom router
 	// router := &rt.Router{}
-	router := gin.Default()
+	router, err := inject(ds)
+	if err != nil {
+		log.Fatalf("Failure to inject data sources: %v\n", err)
+	}
 	// h := hl.NewHandler(&hl.Config{
 	// 	R: router,
 	// })
-	handler.NewHandler(&handler.Config{
-		R: router,
-	})
+	// handler.NewHandler(&handler.Config{
+	// 	R: router,
+	// })
 	log.Println("Starting server...")
 	// handle all the defined routes
 	// h.Routes()
@@ -65,6 +72,11 @@ func main() {
 	// the request it is currently handling
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	// shutdown data sources
+	if err := ds.close(); err != nil {
+		log.Fatalf("A problem occurred gracefully shutting down data sources: %v\n", err)
+	}
 
 	// Shutting down server
 	log.Println("Shutting down server...")

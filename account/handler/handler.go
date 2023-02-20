@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"os"
 
 	"github.com/pienaahj/memrizr/account/model"
 	// rt "github.com/pienaahj/memrizr/account/router"
@@ -30,6 +29,7 @@ type Config struct {
 	R            *gin.Engine
 	UserService  model.UserService
 	TokenService model.TokenService
+	BaseURL      string
 }
 
 //	NewRouter creates a new Router initializes the handler with required injected services along with http routes
@@ -44,7 +44,7 @@ func NewHandler(c *Config) {
 		TokenService: c.TokenService,
 	}
 	// Create a group, or base url for all routes
-	g := c.R.Group(os.Getenv("ACCOUNT_API_URL"))
+	g := c.R.Group(c.BaseURL)
 
 	g.GET("/me", h.Me)
 	g.POST("/signup", h.Signup)
