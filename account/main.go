@@ -38,10 +38,11 @@ func main() {
 
 	// Create a custom http server with a custom handler(router)
 	s := &http.Server{
-		Addr:         port,
-		Handler:      router, // router
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
+		Addr:    port,
+		Handler: router, // router
+		// Timeouts are concerned with the io to the client these will not stop long running handlers
+		// ReadTimeout:  5 * time.Second,
+		// WriteTimeout: 5 * time.Second,
 	}
 
 	// Gracefull shutdown

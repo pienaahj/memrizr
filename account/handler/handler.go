@@ -2,8 +2,12 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
+	"github.com/pienaahj/memrizr/account/handler/middleware"
 	"github.com/pienaahj/memrizr/account/model"
+	"github.com/pienaahj/memrizr/account/model/apperrors"
+
 	// rt "github.com/pienaahj/memrizr/account/router"
 	"github.com/gin-gonic/gin"
 )
@@ -26,10 +30,11 @@ type Handler struct {
 // handler layer on handler initialization
 type Config struct {
 	// R           *rt.Router
-	R            *gin.Engine
-	UserService  model.UserService
-	TokenService model.TokenService
-	BaseURL      string
+	R               *gin.Engine
+	UserService     model.UserService
+	TokenService    model.TokenService
+	BaseURL         string
+	TimeoutDuration time.Duration
 }
 
 //	NewRouter creates a new Router initializes the handler with required injected services along with http routes
@@ -46,7 +51,13 @@ func NewHandler(c *Config) {
 	// Create a group, or base url for all routes
 	g := c.R.Group(c.BaseURL)
 
-	g.GET("/me", h.Me)
+	if gin.Mode() != gin.TestMode {
+		g.Use(middleware.Timeout(c.TimeoutDuration, apperrors.NewServiceUnavailable()))
+		g.GET("/me", middleware.AuthUser(h.TokenService), h.Me)
+	} else {
+		g.GET("/me", h.Me)
+	}
+
 	g.POST("/signup", h.Signup)
 	g.POST("/signin", h.Signin)
 	g.POST("/signout", h.Signout)
@@ -56,32 +67,10 @@ func NewHandler(c *Config) {
 	g.PUT("/details", h.Details)
 }
 
-// // Me handler calls services for getting
-// // a user's details
-// func (h *Handler) Me(c *gin.Context) {
-// 	c.JSON(http.StatusOK, gin.H{
-// 		"hello": "it's me",
-// 	})
-// }
-
-// Signin handler
-func (h *Handler) Signin(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"hello": "it's signin",
-	})
-}
-
 // Signout handler
 func (h *Handler) Signout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"hello": "it's signout",
-	})
-}
-
-// Tokens handler
-func (h *Handler) Tokens(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"hello": "it's tokens",
 	})
 }
 

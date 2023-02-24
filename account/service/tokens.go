@@ -2,6 +2,7 @@ package service
 
 import (
 	"crypto/rsa"
+	"fmt"
 	"log"
 	"time"
 
@@ -10,8 +11,8 @@ import (
 	"github.com/pienaahj/memrizr/account/model"
 )
 
-// IDTokenCustomClaims holds structure of jwt claims of idToken
-type IDTokenCustomClaims struct {
+// idTokenCustomClaims holds structure of jwt claims of idToken
+type idTokenCustomClaims struct {
 	User *model.User `json:"user"`
 	jwt.RegisteredClaims
 }
@@ -26,7 +27,7 @@ func generateIDToken(u *model.User, key *rsa.PrivateKey, exp int64) (string, err
 	// tokenExp := unixTime + exp
 	tokenExp := jwt.NewNumericDate(time.Now().Add(time.Duration(exp) * time.Second)) // 15 minutes from current time
 
-	claims := IDTokenCustomClaims{
+	claims := idTokenCustomClaims{
 		User: u,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  unixTime,
@@ -45,25 +46,25 @@ func generateIDToken(u *model.User, key *rsa.PrivateKey, exp int64) (string, err
 	return ss, nil
 }
 
-// RefreshToken holds the actual signed jwt string along with the ID
+// refreshTokenData holds the actual signed jwt string along with the ID
 // We return the id so it can be used without re-parsing the JWT from signed string
-type RefreshToken struct {
+type refreshTokenData struct {
 	SS        string
-	ID        string
+	ID        uuid.UUID
 	ExpiresIn time.Duration
 }
 
 // RefreshTokenCustomClaims holds the payload of a refresh token
 // This can be used to extract user id for subsequent
 // application operations (IE, fetch user in Redis)
-type RefreshTokenCustomClaims struct {
+type refreshTokenCustomClaims struct {
 	UID uuid.UUID `json:"uid"`
 	jwt.RegisteredClaims
 }
 
 // generateRefreshToken creates a refresh token
 // The refresh token stores only the user's ID, a string
-func generateRefreshToken(uid uuid.UUID, key string, exp int64) (*RefreshToken, error) {
+func generateRefreshToken(uid uuid.UUID, key string, exp int64) (*refreshTokenData, error) {
 	// currentTime := time.Now()
 	currentTime := jwt.NewNumericDate(time.Now())
 	// tokenExp := currentTime.AddDate(0, 0, 3) // 3 days
@@ -75,7 +76,7 @@ func generateRefreshToken(uid uuid.UUID, key string, exp int64) (*RefreshToken, 
 		return nil, err
 	}
 
-	claims := RefreshTokenCustomClaims{
+	claims := refreshTokenCustomClaims{
 		UID: uid,
 		RegisteredClaims: jwt.RegisteredClaims{
 			// IssuedAt:  currentTime.Unix(),
@@ -94,9 +95,60 @@ func generateRefreshToken(uid uuid.UUID, key string, exp int64) (*RefreshToken, 
 		return nil, err
 	}
 
-	return &RefreshToken{
+	return &refreshTokenData{
 		SS:        ss,
-		ID:        tokenID.String(),
+		ID:        tokenID,
 		ExpiresIn: tokenExp.Sub((currentTime).Time),
 	}, nil
+}
+
+// validateIDToken returns the token's claims if the token is valid
+func validateIDToken(tokenString string, key *rsa.PublicKey) (*idTokenCustomClaims, error) {
+	claims := &idTokenCustomClaims{}
+
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return key, nil
+	})
+
+	// For now we'll just return the error and handle logging in service level
+	if err != nil {
+		return nil, err
+	}
+
+	if !token.Valid {
+		return nil, fmt.Errorf("ID token is invalid")
+	}
+
+	claims, ok := token.Claims.(*idTokenCustomClaims)
+
+	if !ok {
+		return nil, fmt.Errorf("ID token valid but couldn't parse claims")
+	}
+
+	return claims, nil
+}
+
+// validateRefreshToken uses the secret key to validate a refresh token
+func validateRefreshToken(tokenString string, key string) (*refreshTokenCustomClaims, error) {
+	claims := &refreshTokenCustomClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(key), nil
+	})
+
+	// For now we'll just return the error and handle logging in service level
+	if err != nil {
+		return nil, err
+	}
+
+	if !token.Valid {
+		return nil, fmt.Errorf("refresh token is invalid")
+	}
+
+	claims, ok := token.Claims.(*refreshTokenCustomClaims)
+
+	if !ok {
+		return nil, fmt.Errorf("refresh token valid but couldn't parse claims")
+	}
+
+	return claims, nil
 }

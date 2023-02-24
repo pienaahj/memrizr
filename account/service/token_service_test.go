@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+
 	"os"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/pienaahj/memrizr/account/model"
+	"github.com/pienaahj/memrizr/account/model/apperrors"
 	"github.com/pienaahj/memrizr/account/model/mocks"
 )
 
@@ -80,7 +82,8 @@ func TestNewPairFromUser(t *testing.T) {
 	mockTokenRepository.On("SetRefreshToken", setSuccessArguments...).Return(nil)
 	mockTokenRepository.On("SetRefreshToken", setErrorArguments...).Return(fmt.Errorf("Error setting refresh token"))
 	mockTokenRepository.On("DeleteRefreshToken", deleteWithPrevIDArguments...).Return(nil)
-	t.Run("Returns a token pair with values", func(t *testing.T) {
+
+	t.Run("Returns a token pair with proper values", func(t *testing.T) {
 		ctx := context.Background()                                    // updated from context.TODO()
 		tokenPair, err := tokenService.NewPairFromUser(ctx, u, prevID) // replaced "" with prevID from setup
 		assert.NoError(t, err)
@@ -91,13 +94,13 @@ func TestNewPairFromUser(t *testing.T) {
 		mockTokenRepository.AssertCalled(t, "DeleteRefreshToken", deleteWithPrevIDArguments...)
 
 		var s string
-		assert.IsType(t, s, tokenPair.IDToken)
+		assert.IsType(t, s, tokenPair.IDToken.SS)
 
 		// decode the Base64URL encoded string
 		// simpler to use jwt library which is already imported
-		idTokenClaims := &IDTokenCustomClaims{}
+		idTokenClaims := &idTokenCustomClaims{}
 
-		_, err = jwt.ParseWithClaims(tokenPair.IDToken, idTokenClaims, func(token *jwt.Token) (interface{}, error) {
+		_, err = jwt.ParseWithClaims(tokenPair.IDToken.SS, idTokenClaims, func(token *jwt.Token) (interface{}, error) {
 			return pubKey, nil
 		})
 
@@ -142,12 +145,12 @@ func TestNewPairFromUser(t *testing.T) {
 		// fmt.Println("Should Expire at:", expectedExpiresAt)
 		assert.WithinDuration(t, expectedExpiresAt, expiresAt, 5*time.Second)
 
-		refreshTokenClaims := &RefreshTokenCustomClaims{}
-		_, err = jwt.ParseWithClaims(tokenPair.RefreshToken, refreshTokenClaims, func(token *jwt.Token) (interface{}, error) {
+		refreshTokenClaims := &refreshTokenCustomClaims{}
+		_, err = jwt.ParseWithClaims(tokenPair.RefreshToken.SS, refreshTokenClaims, func(token *jwt.Token) (interface{}, error) {
 			return []byte(secret), nil
 		})
 
-		assert.IsType(t, s, tokenPair.RefreshToken)
+		assert.IsType(t, s, tokenPair.RefreshToken.SS)
 
 		// assert claims on refresh token
 		assert.NoError(t, err)
@@ -178,5 +181,105 @@ func TestNewPairFromUser(t *testing.T) {
 		mockTokenRepository.AssertCalled(t, "SetRefreshToken", setSuccessArguments...)
 		// DeleteRefreshToken should not be called since prevID is ""
 		mockTokenRepository.AssertNotCalled(t, "DeleteRefreshToken")
+	})
+}
+
+func TestValidateIDToken(t *testing.T) {
+	var idExp int64 = 15 * 60
+
+	priv, _ := os.ReadFile("../rsa_private_test.pem")
+	privKey, _ := jwt.ParseRSAPrivateKeyFromPEM(priv)
+	pub, _ := os.ReadFile("../rsa_public_test.pem")
+	pubKey, _ := jwt.ParseRSAPublicKeyFromPEM(pub)
+
+	// instantiate a common token service to be used by all tests
+	tokenService := NewTokenService(&TSConfig{
+		PrivKey:          privKey,
+		PubKey:           pubKey,
+		IDExpirationSecs: idExp,
+	})
+
+	// include password to make sure it is not serialized
+	// since json tag is "-"
+	uid, _ := uuid.NewRandom()
+	u := &model.User{
+		UID:      uid,
+		Email:    "bob@bob.com",
+		Password: "blarghedymcblarghface",
+	}
+
+	t.Run("Valid token", func(t *testing.T) {
+		// maybe not the best approach to depend on utility method
+		// token will be valid for 15 minutes
+		ss, _ := generateIDToken(u, privKey, idExp)
+
+		uFromToken, err := tokenService.ValidateIDToken(ss)
+		assert.NoError(t, err)
+
+		assert.ElementsMatch(
+			t,
+			[]interface{}{u.Email, u.Name, u.UID, u.Website, u.ImageURL},
+			[]interface{}{uFromToken.Email, uFromToken.Name, uFromToken.UID, uFromToken.Website, uFromToken.ImageURL},
+		)
+	})
+
+	t.Run("Expired token", func(t *testing.T) {
+		// maybe not the best approach to depend on utility method
+		// token will be valid for 15 minutes
+		ss, _ := generateIDToken(u, privKey, -1) // expires one second ago
+
+		expectedErr := apperrors.NewAuthorization("Unable to verify user from idToken")
+
+		_, err := tokenService.ValidateIDToken(ss)
+		assert.EqualError(t, err, expectedErr.Message)
+	})
+
+	t.Run("Invalid signature", func(t *testing.T) {
+		// maybe not the best approach to depend on utility method
+		// token will be valid for 15 minutes
+		ss, _ := generateIDToken(u, privKey, -1) // expires one second ago
+
+		expectedErr := apperrors.NewAuthorization("Unable to verify user from idToken")
+
+		_, err := tokenService.ValidateIDToken(ss)
+		assert.EqualError(t, err, expectedErr.Message)
+	})
+
+	// TODO - Add other invalid token types
+}
+func TestValidateRefreshToken(t *testing.T) {
+	var refreshExp int64 = 3 * 24 * 2600
+	secret := "anotsorandomtestsecret"
+
+	tokenService := NewTokenService(&TSConfig{
+		RefreshSecret:         secret,
+		RefreshExpirationSecs: refreshExp,
+	})
+
+	uid, _ := uuid.NewRandom()
+	u := &model.User{
+		UID:      uid,
+		Email:    "bob@bob.com",
+		Password: "blarghedymcblarghface",
+	}
+
+	t.Run("Valid token", func(t *testing.T) {
+		testRefreshToken, _ := generateRefreshToken(u.UID, secret, refreshExp)
+
+		validatedRefreshToken, err := tokenService.ValidateRefreshToken(testRefreshToken.SS)
+		assert.NoError(t, err)
+
+		assert.Equal(t, u.UID, validatedRefreshToken.UID)
+		assert.Equal(t, testRefreshToken.SS, validatedRefreshToken.SS)
+		assert.Equal(t, u.UID, validatedRefreshToken.UID)
+	})
+
+	t.Run("Expired token", func(t *testing.T) {
+		testRefreshToken, _ := generateRefreshToken(u.UID, secret, -1)
+
+		expectedErr := apperrors.NewAuthorization("Unable to verify user from refresh token")
+
+		_, err := tokenService.ValidateRefreshToken(testRefreshToken.SS)
+		assert.EqualError(t, err, expectedErr.Message)
 	})
 }

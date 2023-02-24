@@ -207,8 +207,8 @@ func TestSignup(t *testing.T) {
 
 		// create a mock response
 		mockTokenResp := &model.TokenPair{
-			IDToken:      "idToken",
-			RefreshToken: "refreshToken",
+			IDToken:      model.IDToken{SS: "idToken"},
+			RefreshToken: model.RefreshToken{SS: "refreshToken"},
 		}
 
 		// initialise the mock user service
