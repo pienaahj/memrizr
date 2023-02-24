@@ -55,9 +55,11 @@ func NewHandler(c *Config) {
 		g.Use(middleware.Timeout(c.TimeoutDuration, apperrors.NewServiceUnavailable()))
 		g.GET("/me", middleware.AuthUser(h.TokenService), h.Me)
 		g.POST("/signout", middleware.AuthUser(h.TokenService), h.Signout)
+		g.PUT("/details", middleware.AuthUser(h.TokenService), h.Details)
 	} else {
 		g.GET("/me", h.Me)
 		g.POST("/signout", h.Signout)
+		g.PUT("/details", h.Details)
 	}
 
 	g.POST("/signup", h.Signup)
@@ -65,7 +67,6 @@ func NewHandler(c *Config) {
 	g.POST("/tokens", h.Tokens)
 	g.POST("/image", h.Image)
 	g.DELETE("/image", h.DeleteImage)
-	g.PUT("/details", h.Details)
 }
 
 // Image handler
@@ -79,13 +80,6 @@ func (h *Handler) Image(c *gin.Context) {
 func (h *Handler) DeleteImage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"hello": "it's deleteImage",
-	})
-}
-
-// Details handler
-func (h *Handler) Details(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"hello": "it's details",
 	})
 }
 
