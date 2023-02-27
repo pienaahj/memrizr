@@ -66,15 +66,6 @@ func (s *userService) Get(ctx context.Context, uid uuid.UUID) (*model.User, erro
 	return u, err
 }
 
-// NewUserService is a factory function for
-// initializing a UserService with its repository layer dependencies
-func NewUserService(c *USConfig) model.UserService {
-	return &userService{
-		UserRepository:  c.UserRepository,
-		ImageRepository: c.ImageRepository,
-	}
-}
-
 // SignUp reaches our to a UserRepository to verify the
 // email address is available and signs up the user if this is the case
 func (s *userService) Signup(ctx context.Context, u *model.User) error {
@@ -127,6 +118,15 @@ func (s *userService) Signin(ctx context.Context, u *model.User) error {
 
 	*u = *uFetched
 	return nil
+}
+
+// NewUserService is a factory function for
+// initializing a UserService with its repository layer dependencies
+func NewUserService(c *USConfig) model.UserService {
+	return &userService{
+		UserRepository:  c.UserRepository,
+		ImageRepository: c.ImageRepository,
+	}
 }
 
 func (s *userService) UpdateDetails(ctx context.Context, u *model.User) error {

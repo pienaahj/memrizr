@@ -45,6 +45,26 @@ func (m *MockTokenService) Signout(ctx context.Context, uid uuid.UUID) error {
 	return r0
 }
 
+// ValidateIDToken mocks concrete ValidateIDToken
+func (m *MockTokenService) ValidateIDToken(tokenString string) (*model.User, error) {
+	ret := m.Called(tokenString)
+
+	// first value passed to "Return"
+	var r0 *model.User
+	if ret.Get(0) != nil {
+		// we can just return this if we know we won't be passing function to "Return"
+		r0 = ret.Get(0).(*model.User)
+	}
+
+	var r1 error
+
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(error)
+	}
+
+	return r0, r1
+}
+
 // ValidateRefreshToken mocks concrete ValidateRefreshToken
 func (m *MockTokenService) ValidateRefreshToken(refreshTokenString string) (*model.RefreshToken, error) {
 	ret := m.Called(refreshTokenString)

@@ -81,6 +81,12 @@ func inject(d *dataSources) (*gin.Engine, error) {
 		return nil, fmt.Errorf("could not parse REFRESH_TOKEN_EXP as int: %w", err)
 	}
 
+	maxBodyBytes := os.Getenv("MAX_BODY_BYTES")
+	mbb, err := strconv.ParseInt(maxBodyBytes, 0, 64)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse MAX_BODY_BYTES as int: %w", err)
+	}
+
 	tokenService := service.NewTokenService(&service.TSConfig{
 		TokenRepository:       tokenRepository,
 		PrivKey:               privKey,
@@ -109,6 +115,7 @@ func inject(d *dataSources) (*gin.Engine, error) {
 		TokenService:    tokenService,
 		BaseURL:         baseURL,
 		TimeoutDuration: time.Duration(time.Duration(ht) * time.Second),
+		MaxBodyBytes:    mbb,
 	})
 
 	return router, nil

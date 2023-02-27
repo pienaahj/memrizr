@@ -182,6 +182,37 @@ func TestNewPairFromUser(t *testing.T) {
 		// DeleteRefreshToken should not be called since prevID is ""
 		mockTokenRepository.AssertNotCalled(t, "DeleteRefreshToken")
 	})
+
+	t.Run("Prev token not in repository", func(t *testing.T) {
+		ctx := context.Background()
+		uid, _ := uuid.NewRandom()
+		u := &model.User{
+			UID: uid,
+		}
+
+		tokenIDNotInRepo := "not_in_token_repo"
+
+		deleteArgs := mock.Arguments{
+			ctx,
+			u.UID.String(),
+			tokenIDNotInRepo,
+		}
+
+		mockError := apperrors.NewAuthorization("Invalid refresh token")
+		mockTokenRepository.
+			On("DeleteRefreshToken", deleteArgs...).
+			Return(mockError)
+
+		_, err := tokenService.NewPairFromUser(ctx, u, tokenIDNotInRepo)
+		assert.Error(t, err)
+
+		appError, ok := err.(*apperrors.Error)
+
+		assert.True(t, ok)
+		assert.Equal(t, apperrors.Authorization, appError.Type)
+		mockTokenRepository.AssertCalled(t, "DeleteRefreshToken", deleteArgs...)
+		mockTokenRepository.AssertNotCalled(t, "SetRefreshToken")
+	})
 }
 
 func TestValidateIDToken(t *testing.T) {
