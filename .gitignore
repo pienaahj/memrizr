@@ -353,4 +353,4 @@ MigrationBackup/
 *.env
 *.env.dev
 *.pem
-account/serviceAccount.json
+serviceAccount.json
