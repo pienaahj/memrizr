@@ -355,3 +355,4 @@ MigrationBackup/
 *.pem
 serviceAccount.json
 serviceAccount.*
+account/serviceAccount.json
