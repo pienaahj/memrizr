@@ -3,6 +3,7 @@
 PWD = $(shell pwd)
 ACCTPATH = $(PWD)/account
 PORT = 5432
+APPPATH=account
 
 # Default number of migrations to execute up or down
 N = 1
